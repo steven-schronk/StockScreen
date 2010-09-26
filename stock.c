@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include <string.h>
+#include <GL/glut.h>
 #include <stdlib.h>
 
-#include <GL/glut.h>
 
 struct dowpoint {
 	double open;
@@ -12,7 +11,7 @@ struct dowpoint {
 	int time;
 };
 
-int RandomInt(int min, int max)
+int GenerateRandomInt(int min, int max)
 {
 	if(min > max)
 	{
@@ -24,18 +23,6 @@ int RandomInt(int min, int max)
 	}
 }
 
-void DrawString(int x, int y, char *string)
-{
-  int len, i;
-  glRasterPos2f(x, y);
-  len = (int) strlen(string);
-  for (i = 0; i < len; i++)
-  {
-    glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, string[i]);
-  }
-}
-
-
 /*
 
 Create hash of dow points with time as the key.
@@ -44,6 +31,7 @@ These can be verified to be present when each frame needs to be re-drawn.  When 
 they can be pulled from the random number generator (later database) and then displayed.
 
 This should be done without the user having to perform any action.
+
 
 Functions needed:
 
@@ -55,6 +43,9 @@ Add point to graph.
 
 Find difference between current point and previous point.
 	Could be positive or negative.
+
+
+
 
 */
 
@@ -77,16 +68,29 @@ void display(void)
 	candle_tx = width - 30;  candle_ty = height - 30;
 	candle_bx =  30; candle_by = 330;
 
-	vol_tx = width - 30;  vol_ty = height - 700;
+	vol_tx = width - 30;  vol_ty = height = 300;
 	vol_bx = 30; vol_by = 30;
 
-	/* draw text name of graph */
-	glColor3f(1.0, 1.0, 1.0);
-	DrawString(width/2 - 150, height-20, "Dow Jones Industrial Average");
+	/*
+	glBegin(GL_LINES);
+		glVertex2i(vol_tx, vol_ty);
+		glVertex2i(vol_ty, vol_bx);
+		glVertex2i(vol_bx, vol_by);
+	glEnd();
 
-	/* Draw American Flag */
-	/* Other Flags Will Need To Be Options Later */
 
+	glPointSize(10);
+	glBegin(GL_POINTS);
+		glVertex2i(vol_tx, vol_ty);
+	glEnd();
+
+
+	 draw line from corner to corner of candle
+	glBegin(GL_LINES);
+		glVertex2i(candle_tx, candle_ty);
+		glVertex2i(candle_bx, candle_by);
+	glEnd();
+	*/
 
 	/* draw grid lines for candlestick chart */
 
@@ -155,24 +159,25 @@ void display(void)
 		glVertex2i(vol_tx, vol_by);
 	glEnd();
 
+
 	srand((unsigned)time(0));
 
 	/* draw candlestick data points */
 	for(i = candle_bx; i < candle_tx; i += candle_width)
 	{
 		/* generate random values for this point */
-		min = RandomInt(candle_by, candle_ty);
-		max = RandomInt(min, candle_ty);
+		min = GenerateRandomInt(candle_by, candle_ty);
+		max = GenerateRandomInt(min, candle_ty);
 		/* get direction */
-		open = RandomInt(0, 1);
+		open = GenerateRandomInt(0, 1);
 
 		if(open > 0)
 		{
-			open = RandomInt(min, max);
-			close = RandomInt(min, open);
+			open = GenerateRandomInt(min, max);
+			close = GenerateRandomInt(min, open);
 		} else {
-			close = RandomInt(min, max);
-			open = RandomInt(min, close);
+			close = GenerateRandomInt(min, max);
+			open = GenerateRandomInt(min, close);
 		}
 
 		/* color set by diff from start to stop */
@@ -207,7 +212,7 @@ void display(void)
 	for( i = vol_bx; i < vol_tx; i += candle_width)
 	{
 		/* generate volume ammount */
-		open = RandomInt(vol_by, vol_ty);
+		open = GenerateRandomInt(vol_by, vol_ty);
 
 		if(open == close) glColor3f(0.75, 0.75, 0.75); 
 		else if (open > close) { glColor3f(0.0, 0.50, 0.0); }
@@ -268,7 +273,7 @@ int main(int argc, char **argv)
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(350, 150);
-	glutCreateWindow("Steven Schronk's Data Viewer");
+	glutCreateWindow(argv[0]);
 	glutFullScreen();
 
 	init();
