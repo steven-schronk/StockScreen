@@ -448,6 +448,13 @@ void DrawSpeedometer(int tx, int ty, int bx, int by, char *title, char *units, i
 
 	glColor3f(1.0, 0.0, 0.0); /* red */
 
+
+	/*
+	 *
+	 * TODO: Was making wedges for background of speedometer.
+	 * code draws pixel close to origin, but does not work properly.
+	 */
+
 	float angle;
 	glBegin(GL_POLYGON);
 	    for(i = 0; i < 15; i++)
