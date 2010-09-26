@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include <time.h>
 #include <wchar.h>
 
 #include <GL/glut.h>
 
 #include "random.c"
+
+#define PI 3.1415926535897932384626433832795029L
 
 struct dowpoint {
 	double open;
@@ -22,6 +25,15 @@ typedef struct movinglistdata {
 	int diff;			/* difference from last value >0 is positive, 0 is no_change, <0 is negative*/
 } MovingListData;
 
+
+typedef struct ohlcdata {
+	int time;		/* time stamp stored in epoc time */
+	int open;			/* value at start of time period et. al.  */
+	int high;
+	int low;
+	int close;
+} OHLCata;
+
 void DrawString(int x, int y, char *string)
 {
   int len, i;
@@ -31,6 +43,87 @@ void DrawString(int x, int y, char *string)
   {
     glutBitmapCharacter(GLUT_BITMAP_9_BY_15, string[i]);
   }
+}
+
+/*
+	draw box made of lines at at start and stop locations.
+	TODO: Add color as a parameter.
+ */
+void DrawSquareBox(int tx, int ty, int bx, int by, int width)
+{
+
+}
+
+void DrawCircle(float cx, float cy, float r, int segments)
+{
+	float theta, x, y, ii;
+	glBegin(GL_LINE_LOOP);
+	for(ii = 0; ii < segments; ii++)
+	{
+		theta = 2.0f * PI * (float)ii / (float)segments; /* get current angle */
+		x = r * cos(theta);/* calculate the x component */
+		y = r * sin(theta);/* calculate the y component */
+		glVertex2f(x + cx, y + cy);/* output vertex */
+	}
+	glEnd();
+}
+
+
+/*
+	draw a refresh button - used at top of most windows.
+	x and y is the position of the button.
+ */
+void ButtonRefresh(int bx, int by)
+{
+	int tx = bx + 16;
+	int ty = by + 16;
+	glLineWidth(1.0);
+	glColor3f(1.0, 1.0, 1.0);
+
+	/* draw square box of button */
+	glBegin(GL_LINE_STRIP);
+		glVertex2i(tx, ty);
+		glVertex2i(tx, by);
+		glVertex2i(bx,by);
+		glVertex2i(bx,ty);
+		glVertex2i(tx, ty);
+	glEnd();
+
+	/* draw symbol inside of button */
+	DrawCircle(bx + 8, by + 9, 5.0, 8);
+}
+
+/*
+	button on left of window provides the user with a place to drag window from one location to another.
+	initial version uses this as a decoration for the window. makes windows look more conventional.
+ */
+void ButtonDrag(int bx, int by)
+{
+	int tx = bx + 16;
+	int ty = by + 16;
+	int i = 0;
+	glLineWidth(1.0);
+	glColor3f(1.0, 1.0, 1.0);
+
+	/* draw square box of button */
+	glBegin(GL_LINE_STRIP);
+		glVertex2i(tx, ty);
+		glVertex2i(tx, by);
+		glVertex2i(bx,by);
+		glVertex2i(bx,ty);
+		glVertex2i(tx, ty);
+	glEnd();
+
+	/* draw lines inside box */
+	by += 4;
+	for (i = 1; i < 5; i++)
+	{
+		glBegin(GL_LINES);
+			glVertex2i(bx + 2, by);
+			glVertex2i(bx + 15, by);
+		glEnd();
+		by += 3;
+	}
 }
 
 /*
@@ -89,10 +182,13 @@ void DrawMovingList(int tx, int ty, int bx, int by, MovingListData *employees, i
 	int offset = by - 40;
 	char buf[12];
 
+	ButtonDrag(tx + 5, by - 20);
+	ButtonRefresh(tx + 250, by - 20);
 	/* draw outline of main window */
 	glColor3f(0.929, 0.615, 0.309);
 	glLineWidth(1.0);
 
+	/* draw outer box */
 	glBegin(GL_LINE_STRIP);
 		glVertex2i(tx, ty);
 		glVertex2i(tx, by);
@@ -108,7 +204,7 @@ void DrawMovingList(int tx, int ty, int bx, int by, MovingListData *employees, i
 	glEnd();
 
 	glColor3f(1.0, 1.0, 1.0);
-	DrawString(tx+10, by-18, "Best Performance");
+	DrawString(tx+30, by-18, "Best Performance");
 
 	/* draw each of the data elements with icons */
 	count--;
@@ -125,7 +221,11 @@ void DrawMovingList(int tx, int ty, int bx, int by, MovingListData *employees, i
 	}
 }
 
-void DrawOther(void)
+/*
+	chart contains open, high, low and close for each data point.
+	chart auto scales based on min and max data points.
+ */
+void DrawOHLC(int tx, int ty, int bx, int by, char *title, OHLCata *data, int count)
 {
 	int width, height, i;
 
@@ -146,7 +246,7 @@ void DrawOther(void)
 
 	/* draw text name of graph */
 	glColor3f(1.0, 1.0, 1.0);
-	DrawString(width/2 - 150, height-20, "Dow Jones Industrial Average");
+	DrawString((bx-tx)/2 - 150, ty-20, title);
 
 	/* Draw American Flag */
 	/* Other Flags Will Need To Be Options Later */
@@ -265,14 +365,12 @@ void DrawOther(void)
 		glEnd();
 
 	}
-
 	close = 0;
-
 
 	/* draw volume chart data points */
 	for( i = vol_bx; i < vol_tx; i += candle_width)
 	{
-		/* generate volume ammount */
+		/* generate volume amount */
 		open = RandomInt(vol_by, vol_ty);
 
 		if(open == close) glColor3f(0.75, 0.75, 0.75);
@@ -327,8 +425,11 @@ Find difference between current point and previous point.
 
 void display(void)
 {
+	int i = 0;
+	int epoc = 1284493172;
 
 	MovingListData employees[10];
+	OHLCata ohlc[20];
 
 	employees[0].pString = "Kurt Godel";
 	employees[0].value = 2343.23;
@@ -370,10 +471,18 @@ void display(void)
 	employees[9].value = 78.33;
 	employees[9].diff = 1;
 
+	/* load epoc time and data into ohlc */
+	for(i = 0; i < 20; i++)
+	{
+		RandomOHLC(0, 100, &ohlc[i].open, &ohlc[i].high, &ohlc[i].low, &ohlc[i].close);
+		ohlc[i].time = epoc;
+		epoc += 60; 			/* load time data evenly spaced */
+	}
+
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	DrawMovingList(750, 400, 1020, 760, employees, 10);
-
+	DrawOHLC(10, 400, 200, 760, "Production Count", ohlc, 20);
 
 	glFlush();
 	glutSwapBuffers();
