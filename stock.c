@@ -12,6 +12,7 @@
 #define PI 3.1415926535897932384626433832795029L
 #define WINDOW_BORDER 15 /* offset of graphics inside window - in pixels */
 #define WINDOW_TOP_PAD 25 /* offset of top bar for window - in pixels */
+#define OHLC_COUNT 90
 
 struct dowpoint {
 	double open;
@@ -26,7 +27,6 @@ typedef struct movinglistdata {
 	float value;		/* value of data - also printed on screen */
 	int diff;			/* difference from last value >0 is positive, 0 is no_change, <0 is negative*/
 } MovingListData;
-
 
 typedef struct ohlcdata {
 	int time;		/* time stamp stored in epoc time */
@@ -354,7 +354,6 @@ void DrawOHLC(int tx, int ty, int bx, int by, char *title, OHLCata data[], int c
 
 }
 
-
 /*
 	Displays current news items from news feeds.
 	News updates automatically.
@@ -392,14 +391,89 @@ void DrawNews(int tx, int ty, int bx, int by, char *title, News news[], int coun
 	offset = by - WINDOW_TOP_PAD - 25;
 	for (i = 0; i < count; i++)
 	{
+		glColor3f(0.2, 0.2, 0.4);
 		glBegin(GL_LINES);
 			glVertex2i(tx, offset-6);
 			glVertex2i(bx, offset-6);
 		glEnd();
+		glColor3f(1.0, 1.0, 1.0);
 		DrawString(tx+30, offset, news[i].headline);
 		offset -= 30; /* move down to next item */
 	}
 }
+
+/*
+	Displays speedomoeter with data values.
+	TODO: Has levels drawn on background. Level green and two yellows and reds.
+	These are used to display a tolerance to the user.
+	Units value is printed in the dial.
+ */
+void DrawSpeedometer(int tx, int ty, int bx, int by, char *title, char *units, int value)
+{
+	int i = 0, offset = 0;
+	char buf[12];
+	float cx = ((bx-tx)/2)+tx;  /* center of x */
+	float cy = (by-ty)/2;		/* center of y */
+	/* draw outline of graph */
+	ButtonDrag(tx + 5, by - 20);
+	ButtonRefresh(bx - 20, by - 20);
+	/* draw outline of main window */
+	glColor3f(0.929, 0.615, 0.309);
+	glLineWidth(1.0);
+
+	/* draw outer box */
+	glBegin(GL_LINE_STRIP);
+		glVertex2i(tx, ty);
+		glVertex2i(tx, by);
+		glVertex2i(bx,by);
+		glVertex2i(bx,ty);
+		glVertex2i(tx, ty);
+	glEnd();
+
+	/* draw title bar */
+	glBegin(GL_LINES);
+		glVertex2i(tx, by-WINDOW_TOP_PAD);
+		glVertex2i(bx, by-WINDOW_TOP_PAD);
+	glEnd();
+
+	/* draw text name of graph */
+	glColor3f(1.0, 1.0, 1.0);
+	DrawString(tx+30, by-18, title);
+
+	/* draw outer dial of speedometer */
+	DrawCircle(cx, cy, ((bx-tx)/2)-9, 30);
+	DrawCircle(cx, cy, ((bx-tx)/2)-14, 30);
+
+	/* draw speed ranges of speedometer */
+
+	glColor3f(1.0, 0.0, 0.0); /* red */
+
+	float angle;
+	glBegin(GL_POLYGON);
+	    for(i = 0; i < 15; i++)
+	    {
+	    	angle = i*2*3.14159/15;
+	    	glVertex2f(cos(angle),sin(angle));
+	    	printf("x%f\ty%f\n",cos(angle), sin(angle));
+	    }
+	glEnd();
+
+
+
+
+
+	glColor3f(0.0, 1.0, 0.0); /* green */
+
+	/* draw units string under current value */
+	glColor3f(1.0, 1.0, 1.0);
+	snprintf(buf, 12, "%.2f", value);
+	DrawString(tx+30, by - 185, buf);
+	DrawString(tx+30, by - 200, units);
+
+	/* draw pointer */
+
+}
+
 
 /*
 
@@ -429,7 +503,7 @@ void display(void)
 	int epoc = 1284493172;
 
 	MovingListData employees[10];
-	OHLCata ohlc[20];
+	OHLCata ohlc[OHLC_COUNT];
 	News news[10];
 
 	employees[0].pString = "Kurt Godel";
@@ -473,7 +547,7 @@ void display(void)
 	employees[9].diff = 1;
 
 	/* load epoc time and data into ohlc */
-	for(i = 0; i < 20; i++)
+	for(i = 0; i < OHLC_COUNT; i++)
 	{
 		RandomOHLC(0, 100, &ohlc[i].open, &ohlc[i].high, &ohlc[i].low, &ohlc[i].close);
 		ohlc[i].time = epoc;
@@ -498,9 +572,10 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* void DrawNews(int tx, int ty, int bx, int by, char *title, News data[], int count) */
-	DrawNews(10, 10, 1020, 390, "General News", news, 5);
+	DrawNews(10, 10, 740, 390, "General News", news, 5);
 	DrawMovingList(750, 400, 1020, 760, employees, 10);
-	DrawOHLC(10, 400, 740, 760, "Production Count", ohlc, 20);
+	DrawOHLC(10, 400, 740, 760, "Production Count", ohlc, OHLC_COUNT);
+	DrawSpeedometer(750, 10, 1020, 390, "Overtime", "HRS/Employee", 57);
 
 	glFlush();
 	glutSwapBuffers();
@@ -510,6 +585,7 @@ void init(void)
 {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glShadeModel(GL_FLAT);
+	/* glEnable(GL_DEPTH_TEST); */
 }
 
 void reshape(int w, int h)
