@@ -1,3 +1,12 @@
 Stock Screensaver
 
 This Stockmarket Screensaver.
+
+This program is an interactive desktop and kiosk for displaying real-time data loaded from external data sources.
+
+The program is capable of displaying various types of charts and graphs as well as text information using an OpenGL interface.
+
+Data updates are displayed on the screen automatically at regular intervals based on the program's configuration.
+
+This program may also serve as a starting point for a dashboard or interactive portal for employee use.
+

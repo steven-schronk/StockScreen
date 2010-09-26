@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <wchar.h>
 
@@ -10,6 +10,8 @@
 #include "random.c"
 
 #define PI 3.1415926535897932384626433832795029L
+#define WINDOW_BORDER 15 /* offset of graphics inside window - in pixels */
+#define WINDOW_TOP_PAD 25 /* offset of top bar for window - in pixels */
 
 struct dowpoint {
 	double open;
@@ -34,6 +36,11 @@ typedef struct ohlcdata {
 	int close;
 } OHLCata;
 
+typedef struct news {
+	int time;
+	char *headline;
+} News;
+
 void DrawString(int x, int y, char *string)
 {
   int len, i;
@@ -48,11 +55,12 @@ void DrawString(int x, int y, char *string)
 /*
 	draw box made of lines at at start and stop locations.
 	TODO: Add color as a parameter.
- */
+
 void DrawSquareBox(int tx, int ty, int bx, int by, int width)
 {
 
 }
+ */
 
 void DrawCircle(float cx, float cy, float r, int segments)
 {
@@ -199,8 +207,8 @@ void DrawMovingList(int tx, int ty, int bx, int by, MovingListData *employees, i
 
 	/* draw title bar */
 	glBegin(GL_LINES);
-		glVertex2i(tx, by-25);
-		glVertex2i(bx, by-25);
+		glVertex2i(tx, by-WINDOW_TOP_PAD);
+		glVertex2i(bx, by-WINDOW_TOP_PAD);
 	glEnd();
 
 	glColor3f(1.0, 1.0, 1.0);
@@ -223,47 +231,60 @@ void DrawMovingList(int tx, int ty, int bx, int by, MovingListData *employees, i
 
 /*
 	chart contains open, high, low and close for each data point.
-	chart auto scales based on min and max data points.
+	chart automatically scales based on min and max data points.
  */
-void DrawOHLC(int tx, int ty, int bx, int by, char *title, OHLCata *data, int count)
+
+/* DrawOHLC(10, 400, 200, 760, "Production Count", ohlc, 20); */
+void DrawOHLC(int tx, int ty, int bx, int by, char *title, OHLCata data[], int count)
 {
-	int width, height, i;
+	int i = 0;
+	int candle_tx = tx + WINDOW_BORDER, candle_ty = ty + WINDOW_BORDER;
+	int candle_bx = bx - WINDOW_BORDER, candle_by = by - WINDOW_BORDER - WINDOW_TOP_PAD;
+	int candle_space = (candle_bx - candle_tx) / count;
+	int candle_xpos = candle_tx + (candle_tx/2); /* extra offset for width of horizontal bar on left */
+	int data_max_val = 0, data_min_val = 0;
+	/* coefficient value of each pixel - each pixel in the data area of the graph represents this much value */
+	float pixel_value;
 
-	int candle_tx, candle_ty, candle_bx, candle_by;
-	int vol_tx, vol_ty, vol_bx, vol_by;
-	int candle_width = 10;
+	/* draw outline of graph */
+	ButtonDrag(tx + 5, by - 20);
+	ButtonRefresh(bx - 20, by - 20);
+	/* draw outline of main window */
+	glColor3f(0.929, 0.615, 0.309);
+	glLineWidth(1.0);
 
-	int open, close, min, max;
-	/* find width and height of window */
-	width = glutGet(GLUT_WINDOW_WIDTH);
-	height = glutGet(GLUT_WINDOW_HEIGHT);
+	/* draw outer box */
+	glBegin(GL_LINE_STRIP);
+		glVertex2i(tx, ty);
+		glVertex2i(tx, by);
+		glVertex2i(bx,by);
+		glVertex2i(bx,ty);
+		glVertex2i(tx, ty);
+	glEnd();
 
-	candle_tx = width - 30;  candle_ty = height - 30;
-	candle_bx =  30; candle_by = 330;
-
-	vol_tx = width - 30;  vol_ty = height - 700;
-	vol_bx = 30; vol_by = 30;
+	/* draw title bar */
+	glBegin(GL_LINES);
+		glVertex2i(tx, by-WINDOW_TOP_PAD);
+		glVertex2i(bx, by-WINDOW_TOP_PAD);
+	glEnd();
 
 	/* draw text name of graph */
 	glColor3f(1.0, 1.0, 1.0);
-	DrawString((bx-tx)/2 - 150, ty-20, title);
-
-	/* Draw American Flag */
-	/* Other Flags Will Need To Be Options Later */
-
+	DrawString(tx+30, by-18, title);
 
 	/* draw grid lines for candlestick chart */
 
 	/* horizontal lines */
-	glColor3f(.1, .1, .1); /* very dark gray */
+	glColor3f(0.2, 0.2, 0.2); /* very dark gray */
 	glLineWidth(1.0);
-	for(i = candle_by; i < candle_ty; i += 75)
+	for(i = candle_ty; i < candle_by; i += 75)
 	{
 		glBegin(GL_LINES);
 			glVertex2i(candle_tx, i);
 			glVertex2i(candle_bx, i);
 		glEnd();
 	}
+
 	/* draw last horizontal line */
 	glBegin(GL_LINES);
 		glVertex2i(candle_tx, candle_ty);
@@ -272,134 +293,113 @@ void DrawOHLC(int tx, int ty, int bx, int by, char *title, OHLCata *data, int co
 
 	/* vertical lines */
 	glLineWidth(1.0);
-	for(i = candle_bx; i < candle_tx; i += 145)
+	for(i = candle_tx; i < candle_bx; i += 145)
 	{
 		glBegin(GL_LINES);
 			glVertex2i(i, candle_ty);
 			glVertex2i(i, candle_by);
 		glEnd();
 	}
+
 	/* draw last vertical line */
 	glBegin(GL_LINES);
 		glVertex2i(candle_tx, candle_ty);
 		glVertex2i(candle_tx, candle_by);
 	glEnd();
 
-
-	/* draw gridlines for volume chart */
-
-	/* horizontal lines */
-	glColor3f(.1, .1, .1); /* very dark gray */
-	glLineWidth(1.0);
-	for(i = vol_by; i < vol_ty; i += 75)
-	{
-		glBegin(GL_LINES);
-			glVertex2i(vol_tx, i);
-			glVertex2i(vol_bx, i);
-		glEnd();
-	}
-	/* draw last horizontal line */
-	glBegin(GL_LINES);
-		glVertex2i(vol_tx, vol_ty);
-		glVertex2i(vol_bx, vol_ty);
-	glEnd();
-
-	/* vertical lines */
-	glLineWidth(1.0);
-	for(i = vol_bx; i < vol_tx; i += 145)
-	{
-		glBegin(GL_LINES);
-			glVertex2i(i, vol_ty);
-			glVertex2i(i, vol_by);
-		glEnd();
-	}
-	/* draw last vertical line */
-	glBegin(GL_LINES);
-		glVertex2i(vol_tx, vol_ty);
-		glVertex2i(vol_tx, vol_by);
-	glEnd();
-
 	srand((unsigned)time(0));
 
 	/* draw candlestick data points */
-	for(i = candle_bx; i < candle_tx; i += candle_width)
+
+	/* find minimum and maximum values for this dataset */
+	data_max_val = data[0].high;
+	data_min_val = data[0].low;
+	for(i = 1; i < count; i++)
 	{
-		/* generate random values for this point */
-		min = RandomInt(candle_by, candle_ty);
-		max = RandomInt(min, candle_ty);
-		/* get direction */
-		open = RandomInt(0, 1);
+		if(data[i].high > data_max_val) { data_max_val = data[i].high; }
+		if(data[i].low  < data_min_val) { data_min_val = data[i].low;  }
+	}
 
-		if(open > 0)
-		{
-			open = RandomInt(min, max);
-			close = RandomInt(min, open);
-		} else {
-			close = RandomInt(min, max);
-			open = RandomInt(min, close);
-		}
+	pixel_value =  (float)(candle_by - candle_ty) / (data_max_val - data_min_val);
+	printf("graph area %d, pixel value %f\t data max %d\tdata_min %d\n", candle_by - candle_ty, pixel_value, data_max_val, data_min_val);
 
-		/* color set by diff from start to stop */
-		if(open == close) glColor3f(0.75, 0.75, 0.75);
-		else if (close > open) { glColor3f(0.0, 1.0, 0.0); }
+	for(i = 0; i < count; i++) /* for each point in dataset */
+	{
+		/* color set by diff from open to close */
+		if(data[i].open == data[i].close) glColor3f(0.75, 0.75, 0.75);
+		else if (data[i].close > data[i].open) { glColor3f(0.0, 1.0, 0.0); }
 		else { glColor3f(1.0, 0.0, 0.0); }
 
-		glLineWidth(1.0);
 		/* staff line */
+		glLineWidth(1.0);
 		glBegin(GL_LINES);
-			glVertex2i(i, min);
-			glVertex2i(i, max);
+			glVertex2i(candle_xpos, candle_ty + (data[i].high * pixel_value));
+			glVertex2i(candle_xpos, candle_ty + (data[i].low * pixel_value));
 		glEnd();
 
+		/* open mark */
 		glLineWidth(2.0);
-		/* open */
 		glBegin(GL_LINES);
-			glVertex2i(i-(candle_width/2), open);
-			glVertex2i(i, open);
+			glVertex2i(candle_xpos - (candle_space / 2), candle_ty + (data[i].open * pixel_value));
+			glVertex2i(candle_xpos, candle_ty + (data[i].open * pixel_value));
 		glEnd();
 
-		/* close */
+		/* close mark */
 		glBegin(GL_LINES);
-			glVertex2i(i+(candle_width/2), close);
-			glVertex2i(i, close);
+			glVertex2i(candle_xpos + (candle_space / 2), candle_ty + (data[i].close * pixel_value));
+			glVertex2i(candle_xpos, candle_ty + (data[i].close * pixel_value));
 		glEnd();
-
+		candle_xpos += candle_space; /* move next candle position over */
 	}
-	close = 0;
 
-	/* draw volume chart data points */
-	for( i = vol_bx; i < vol_tx; i += candle_width)
-	{
-		/* generate volume amount */
-		open = RandomInt(vol_by, vol_ty);
-
-		if(open == close) glColor3f(0.75, 0.75, 0.75);
-		else if (open > close) { glColor3f(0.0, 0.50, 0.0); }
-		else { glColor3f(0.50, 0.0, 0.0); }
-
-		close = open;
-
-
-		glBegin(GL_POLYGON);
-			glVertex2i(i, vol_by);
-			glVertex2i(i, open);
-			glVertex2i(i+candle_width, open);
-			glVertex2i(i+candle_width, vol_by);
-			glVertex2i(i, vol_by);
-		glEnd();
-
-		glColor3f(0.0, 0.0, 0.0);
-		glLineWidth(0.5);
-		glBegin(GL_LINE_STRIP);
-			glVertex2i(i, vol_by);
-			glVertex2i(i, open);
-			glVertex2i(i+candle_width, open);
-			glVertex2i(i+candle_width, vol_by);
-			glVertex2i(i, vol_by);
-		glEnd();
-	}
 }
 
+
+/*
+	Displays current news items from news feeds.
+	News updates automatically.
+ */
+void DrawNews(int tx, int ty, int bx, int by, char *title, News news[], int count)
+{
+	int i = 0, offset = 0;
+	/* draw outline of graph */
+	ButtonDrag(tx + 5, by - 20);
+	ButtonRefresh(bx - 20, by - 20);
+	/* draw outline of main window */
+	glColor3f(0.929, 0.615, 0.309);
+	glLineWidth(1.0);
+
+	/* draw outer box */
+	glBegin(GL_LINE_STRIP);
+		glVertex2i(tx, ty);
+		glVertex2i(tx, by);
+		glVertex2i(bx,by);
+		glVertex2i(bx,ty);
+		glVertex2i(tx, ty);
+	glEnd();
+
+	/* draw title bar */
+	glBegin(GL_LINES);
+		glVertex2i(tx, by-WINDOW_TOP_PAD);
+		glVertex2i(bx, by-WINDOW_TOP_PAD);
+	glEnd();
+
+	/* draw text name of graph */
+	glColor3f(1.0, 1.0, 1.0);
+	DrawString(tx+30, by-18, title);
+
+	/* print out each news item in news */
+	offset = by - WINDOW_TOP_PAD - 25;
+	for (i = 0; i < count; i++)
+	{
+		glBegin(GL_LINES);
+			glVertex2i(tx, offset-6);
+			glVertex2i(bx, offset-6);
+		glEnd();
+		DrawString(tx+30, offset, news[i].headline);
+		offset -= 30; /* move down to next item */
+	}
+}
 
 /*
 
@@ -412,7 +412,7 @@ This should be done without the user having to perform any action.
 
 Functions needed:
 
-Find absoute max data point
+Find absolute max data point
 Find absolute min data point
 	Used to set scale of graph
 
@@ -430,6 +430,7 @@ void display(void)
 
 	MovingListData employees[10];
 	OHLCata ohlc[20];
+	News news[10];
 
 	employees[0].pString = "Kurt Godel";
 	employees[0].value = 2343.23;
@@ -479,10 +480,27 @@ void display(void)
 		epoc += 60; 			/* load time data evenly spaced */
 	}
 
+	news[0].time = epoc;
+	news[0].headline = "New Product Announcement";
+
+	news[1].time = epoc;
+	news[1].headline = "PROMOTION: John Cage Promoted to District Manager";
+
+	news[2].time = epoc;
+	news[2].headline = "Stock Buy Open";
+
+	news[3].time = epoc;
+	news[3].headline = "Merger with BigCo Completed";
+
+	news[4].time = epoc;
+	news[4].headline = "X25 Product in Production";
+
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	/* void DrawNews(int tx, int ty, int bx, int by, char *title, News data[], int count) */
+	DrawNews(10, 10, 1020, 390, "General News", news, 5);
 	DrawMovingList(750, 400, 1020, 760, employees, 10);
-	DrawOHLC(10, 400, 200, 760, "Production Count", ohlc, 20);
+	DrawOHLC(10, 400, 740, 760, "Production Count", ohlc, 20);
 
 	glFlush();
 	glutSwapBuffers();
@@ -503,8 +521,10 @@ void reshape(int w, int h)
 }
 
 /*void keyboard(unsigned char key, int x, int y)*/
-void keyboard(unsigned char key)
+void keyboard(unsigned char key, int x, int y)
 {
+	x = 0;
+	y = 0;
 	switch (key) {
 	case 27:
 	exit(0);
@@ -514,7 +534,6 @@ void keyboard(unsigned char key)
 
 int main(int argc, char **argv)
 {
-
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(1024, 768);

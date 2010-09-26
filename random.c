@@ -1,3 +1,5 @@
+
+
 /* generate random integer between min and max */
 int RandomInt(int min, int max)
 {
@@ -29,3 +31,5 @@ void RandomOHLC(int min, int max, int *open, int *high, int *low, int *close)
 			*open = RandomInt(*low, *high);
 		}
 }
+
+
